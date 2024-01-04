@@ -1,110 +1,93 @@
 import Std.Tactic.GuardExpr
 
-def Nat.ldiff : Nat → Nat → Nat := Nat.bitwise fun x y => x && not y
-
 structure Int8 where
   ofUInt8 ::
   toUInt8 : UInt8
   deriving DecidableEq
 
 def Int8.size : Nat := UInt8.size
-def Int8.minValue : Int8 := ⟨UInt8.ofNat (UInt8.size >>> 1)⟩
-def Int8.maxValue : Int8 := ⟨Int8.minValue.toUInt8 - 1⟩
-
--- @[extern "lean_uint8_of_nat"]
--- def UInt8.ofNat (n : @& Nat) : UInt8 := ⟨Fin.ofNat n⟩
+def Int8.maxValue : Int8 := ⟨UInt8.ofNat (UInt8.size / 2 - 1)⟩
+def Int8.minValue : Int8 := ⟨UInt8.ofNat (UInt8.size / 2)⟩
 def Int8.ofNat (x : Nat) : Int8 := ⟨UInt8.ofNat x⟩
-
 instance : OfNat Int8 n   := ⟨Int8.ofNat n⟩
 
-------------------------
--- sign insensitive ops:
-------------------------
--- addition
--- subtraction
--- multiplication
--- negation
--- bitwise AND
--- bitwise OR
--- bitwise XOR
--- bitwise NOT
--- left shift
-------------------------
--- sign sensitive ops:
-------------------------
--- division := fun (n m : IntN) : IntN := IntN.ofInt (n.toInt / m.toInt)
--- modulo := fun (n m : IntN) : IntN := IntN.ofInt (n.toInt % m.toInt)
--- right shift ...
--- comparisons (except equality) ...
-------------------------
-
-def Int8.complement (a : Int8) : Int8 := ⟨UInt8.complement a.toUInt8⟩
-def Int8.neg (a : Int8) : Int8 := Int8.ofUInt8 <| UInt8.sub 0 a.toUInt8
-
-instance : Neg Int8 := ⟨Int8.neg⟩
-
-def Int8.sign (a : Int8) : Int8 :=
-  if a.toUInt8 == 0 then 0
-  else if a.toUInt8 > Int8.maxValue.toUInt8 then -1
-  else 1
+/-- Compares an Int8 to 0. -/
+def Int8.compZero (a : Int8) : Ordering :=
+  if a.toUInt8 == 0 then Ordering.eq
+  else if a.toUInt8 > Int8.maxValue.toUInt8 then Ordering.lt
+  else Ordering.gt
 
 abbrev Nat.toInt8 := Int8.ofNat
 
+def Int8.complement (a : Int8) : Int8 := ⟨a.toUInt8.complement⟩
+instance : Complement Int8 := ⟨Int8.complement⟩
+
 def Int8.ofInt : Int → Int8
-| Int.ofNat n => Int8.ofNat n
-| Int.negSucc n => Int8.ofNat (Nat.ldiff (Int8.size - 1) n)
+| Int.ofNat n => .ofNat n
+| Int.negSucc n => ~~~.ofNat n
 
 def Int8.toInt (a : Int8) : Int :=
-  let s := a.sign
-  if s == 0 || s == 1 then Int.ofNat a.toUInt8.toNat
-  else Int.negOfNat (Int8.size - a.toUInt8.toNat)
+  match a.compZero with
+  | Ordering.lt => Int.negOfNat (Int8.size - a.toUInt8.toNat)
+  | _ => Int.ofNat a.toUInt8.toNat
+
+
+
+
+def Int8.neg (a : Int8) : Int8 := ⟨0 - a.toUInt8⟩
+instance : Neg Int8 := ⟨Int8.neg⟩
 
 def Int8.add (a b : Int8) : Int8 := ⟨UInt8.add a.toUInt8 b.toUInt8⟩
+instance : Add Int8 := ⟨Int8.add⟩
+
 def Int8.sub (a b : Int8) : Int8 := ⟨UInt8.sub a.toUInt8 b.toUInt8⟩
+instance : Sub Int8 := ⟨Int8.sub⟩
+
 def Int8.mul (a b : Int8) : Int8 := ⟨UInt8.mul a.toUInt8 b.toUInt8⟩
--- def UInt8.div (a b : UInt8) : UInt8 := ⟨a.val / b.val⟩
--- def UInt8.mod (a b : UInt8) : UInt8 := ⟨a.val % b.val⟩
--- def UInt8.modn (a : UInt8) (n : @& Nat) : UInt8 := ⟨Fin.modn a.val n⟩
-def Int8.land (a b : Int8) : Int8 := ⟨UInt8.land a.toUInt8 b.toUInt8⟩
-def Int8.lor (a b : Int8) : Int8 := ⟨UInt8.lor a.toUInt8 b.toUInt8⟩
-def Int8.xor (a b : Int8) : Int8 := ⟨UInt8.xor a.toUInt8 b.toUInt8⟩
-def Int8.shiftLeft (a b : Int8) : Int8 := ⟨UInt8.shiftLeft a.toUInt8 b.toUInt8⟩
-
--- @[extern "lean_uint8_shift_right"]
--- def UInt8.shiftRight (a b : UInt8) : UInt8 := ⟨a.val >>> (modn b 8).val⟩
-
--- def UInt8.lt (a b : UInt8) : Prop := a.val < b.val
-
--- def UInt8.le (a b : UInt8) : Prop := a.val ≤ b.val
-
-instance : Add Int8       := ⟨Int8.add⟩
--- instance : Sub UInt8       := ⟨UInt8.sub⟩
-instance : Sub Int8       := ⟨Int8.sub⟩
--- instance : Mul UInt8       := ⟨UInt8.mul⟩
 instance : Mul Int8       := ⟨Int8.mul⟩
--- instance : Mod UInt8       := ⟨UInt8.mod⟩
--- instance : Mod Int8       := ⟨Int8.mod⟩
--- instance : HMod UInt8 Nat UInt8 := ⟨UInt8.modn⟩
--- instance : HMod Int8 Nat Int8 := ⟨Int8.modn⟩
--- instance : Div UInt8       := ⟨UInt8.div⟩
--- instance : Div Int8       := ⟨Int8.div⟩
--- instance : LT UInt8        := ⟨UInt8.lt⟩
--- instance : LT Int8        := ⟨Int8.lt⟩
--- instance : LE UInt8        := ⟨UInt8.le⟩
--- instance : LE Int8        := ⟨Int8.le⟩
 
--- instance : Complement UInt8 := ⟨UInt8.complement⟩
-instance : Complement Int8 := ⟨Int8.complement⟩
--- instance : AndOp UInt8     := ⟨UInt8.land⟩
+@[extern "lean_int8_div"] -- FIXME
+def Int8.div (a b : Int8) : Int8 :=
+  match a.compZero, b.compZero with
+  | Ordering.lt, Ordering.lt => ⟨(-a).toUInt8 / (-b).toUInt8⟩
+  | Ordering.lt, _ => -⟨(-a).toUInt8 / b.toUInt8⟩
+  | _ , Ordering.lt => -⟨a.toUInt8 / (-b).toUInt8⟩
+  | _, _ => ⟨a.toUInt8 / b.toUInt8⟩
+instance : Div Int8       := ⟨Int8.div⟩
+
+def Int8.mod (a b : Int8) : Int8 :=
+  match a.compZero, b.compZero with
+  | Ordering.lt, Ordering.lt => -⟨(-a).toUInt8 % (-b).toUInt8⟩
+  | Ordering.lt, _ => -⟨(-a).toUInt8 % b.toUInt8⟩
+  | _ , Ordering.lt => ⟨a.toUInt8 % (-b).toUInt8⟩
+  | _, _ => ⟨a.toUInt8 % b.toUInt8⟩
+instance : Mod Int8       := ⟨Int8.mod⟩
+
+def Int8.modn (a : Int8) (n : @& Nat) : Int8 := ⟨UInt8.modn a.toUInt8 n⟩
+instance : HMod Int8 Nat Int8 := ⟨Int8.modn⟩
+
+def Int8.land (a b : Int8) : Int8 := ⟨UInt8.land a.toUInt8 b.toUInt8⟩
 instance : AndOp Int8     := ⟨Int8.land⟩
--- instance : OrOp UInt8      := ⟨UInt8.lor⟩
-instance : OrOp Int8      := ⟨Int8.lor⟩
--- instance : Xor UInt8       := ⟨UInt8.xor⟩
-instance : Xor Int8       := ⟨Int8.xor⟩
--- instance : ShiftLeft UInt8  := ⟨UInt8.shiftLeft⟩
-instance : ShiftLeft Int8  := ⟨Int8.shiftLeft⟩
--- instance : ShiftRight UInt8 := ⟨UInt8.shiftRight⟩
 
+def Int8.lor (a b : Int8) : Int8 := ⟨UInt8.lor a.toUInt8 b.toUInt8⟩
+instance : OrOp Int8      := ⟨Int8.lor⟩
+
+def Int8.xor (a b : Int8) : Int8 := ⟨UInt8.xor a.toUInt8 b.toUInt8⟩
+instance : Xor Int8       := ⟨Int8.xor⟩
+
+def Int8.shiftLeft (a b : Int8) : Int8 := ⟨UInt8.shiftLeft a.toUInt8 b.toUInt8⟩
+instance : ShiftLeft Int8  := ⟨Int8.shiftLeft⟩
+
+def Int8.shiftRight (a b : Int8) : Int8 := ⟨UInt8.shiftRight a.toUInt8 b.toUInt8⟩
+instance : ShiftRight Int8 := ⟨Int8.shiftRight⟩
+
+
+def Int8.lt (a b : Int8) : Prop := a.toInt < b.toInt
+instance : LT Int8        := ⟨Int8.lt⟩
+def Int8.le (a b : Int8) : Prop := a.toInt ≤ b.toInt
+instance : LE Int8        := ⟨Int8.le⟩
+
+-- BOOKMARK
 -- set_option bootstrap.genMatcherCode false in
 -- @[extern "lean_uint8_dec_lt"]
 -- def UInt8.decLt (a b : UInt8) : Decidable (a < b) :=
@@ -122,9 +105,9 @@ instance : ShiftLeft Int8  := ⟨Int8.shiftLeft⟩
 -- instance : Max UInt8 := maxOfLe
 -- instance : Min UInt8 := minOfLe
 
-
-
 instance : ToString Int8 := ⟨fun i => toString i.toInt⟩
+
+
 
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
